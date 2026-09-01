@@ -1,0 +1,571 @@
+
+
+DAY 1 — Make ONE SITE work
+
+By the end of today, you should be able to give your program:
+
+Latitude: 20.5
+Longitude: 78.9
+Site area: 1 km²
+
+and have Python produce something resembling:
+
+SITE
+Center: 20.5, 78.9
+Area: 1 km²
+
+Sample points: 25
+
+Soil:
+    Sand: ...
+    Clay: ...
+    Organic Carbon: ...
+
+Terrain:
+    Slope: ...
+
+Land use:
+    ...
+
+Risk:
+    ...
+
+Do not worry about 300 Indian locations today.
+
+
+---
+
+STEP 0 — Create the project properly
+
+Create:
+
+soil_classifier/
+│
+├── data/
+├── src/
+│   ├── site.py
+│   ├── soil.py
+│   ├── terrain.py
+│   └── land_use.py
+│
+└── requirements.txt
+
+Why?
+
+Because each file answers one question:
+
+site.py      → What area are we evaluating?
+soil.py      → What is the soil like?
+terrain.py   → How steep is it?
+land_use.py  → What is currently on the land?
+
+We're deliberately not creating model.py.
+
+There is no ML model yet.
+
+
+---
+
+STEP 1 — Make sure Python works
+
+Open the VS Code terminal inside soil_classifier.
+
+Create/activate your virtual environment if you haven't already:
+
+python -m venv .venv
+
+Windows:
+
+.venv\Scripts\activate
+
+Then:
+
+pip install numpy pandas requests
+
+Don't install ten libraries yet.
+
+
+---
+
+STEP 2 — Understand what a "site" means mathematically
+
+This is your first actual coding task.
+
+We decided:
+
+User gives:
+    center latitude
+    center longitude
+    area in km²
+
+For v1, we'll represent the site as a square.
+
+Suppose:
+
+area = 1 km²
+
+Then:
+
+side = √1 = 1 km
+
+If:
+
+area = 4 km²
+
+then:
+
+side = √4 = 2 km
+
+So:
+
+side_km = sqrt(area_km2)
+
+Your first function
+
+Create src/site.py.
+
+Write a function that receives:
+
+latitude
+longitude
+area_km2
+
+and calculates the side length of the square.
+
+For example:
+
+1 km² → 1 km × 1 km
+4 km² → 2 km × 2 km
+9 km² → 3 km × 3 km
+
+Do this yourself first.
+
+You know Python functions and basic math.
+
+Your job is to write:
+
+def site_dimensions(area_km2):
+    # your code
+
+Don't ask me for the code yet.
+
+
+---
+
+STEP 3 — Generate points inside the site
+
+Now we need to turn:
+
+1 km²
+
+into actual locations.
+
+Why?
+
+Because one coordinate isn't enough.
+
+We'll start with a 5 × 5 grid:
+
+●   ●   ●   ●   ●
+
+●   ●   ●   ●   ●
+
+●   ●   ●   ●   ●
+
+●   ●   ●   ●   ●
+
+●   ●   ●   ●   ●
+
+That's 25 sample locations across the proposed site.
+
+The center point is one of them.
+
+This gives us a way to ask:
+
+> "What's happening across the whole site?"
+
+
+
+
+---
+
+STEP 4 — Learn one geographic conversion
+
+Here's the only geographic concept you need right now.
+
+Approximately:
+
+1 degree latitude ≈ 111 km
+
+Therefore:
+
+1 km ≈ 1 / 111 degrees
+
+So if your site is 1 km wide, we can convert its physical size into latitude/longitude offsets.
+
+For longitude, the conversion changes depending on latitude, because longitude lines get closer together toward the poles.
+
+We will handle that properly in the function.
+
+You do not need to memorize this.
+
+
+---
+
+STEP 5 — Test your site generator
+
+For:
+
+lat = 20.5
+lon = 78.9
+area = 1
+
+your program should eventually produce approximately 25 coordinates surrounding the center.
+
+Something like:
+
+20.495... , 78.895...
+20.495... , 78.897...
+...
+20.500... , 78.900...
+...
+20.505... , 78.905...
+
+The exact numbers don't matter.
+
+What matters is that they're inside the proposed site.
+
+STOP HERE.
+
+Don't touch SoilGrids yet.
+
+Once this works, you have solved your first major conceptual problem:
+
+> We are evaluating an area, not a point.
+
+
+
+
+---
+
+STEP 6 — Then attack soil data
+
+Only after your site generator works do we move to soil.
+
+We need to answer:
+
+> "Given one of these coordinates, what is the soil like?"
+
+
+
+We want:
+
+sand
+silt
+clay
+organic carbon
+
+You already downloaded the SoilGrids GeoTIFF files.
+
+Now we can use them.
+
+The workflow will be:
+
+coordinate
+    ↓
+GeoTIFF
+    ↓
+find corresponding pixel
+    ↓
+read soil value
+
+This is where rasterio comes in.
+
+Install it:
+
+pip install rasterio
+
+Then we'll test one file only:
+
+SNDPPT_M_sl1_250m_ll.tif
+
+Meaning:
+
+> Sand percentage, surface layer, approximately 0–5 cm.
+
+
+
+We open it and ask:
+
+> "What is the sand value at 20.5, 78.9?"
+
+
+
+That's your first real geospatial operation.
+
+
+---
+
+STEP 7 — Extract all four soil properties
+
+Once sand works:
+
+coordinate
+    ↓
+sand
+
+we repeat the exact same process:
+
+coordinate
+    ↓
+sand
+silt
+clay
+organic carbon
+
+Then create:
+
+get_soil_features(lat, lon)
+
+which returns something like:
+
+{
+    "sand": ...,
+    "silt": ...,
+    "clay": ...,
+    "organic_carbon": ...
+}
+
+Now you have one location's soil profile.
+
+
+---
+
+STEP 8 — Apply it to your entire site
+
+Remember our 25 points?
+
+Now:
+
+25 site points
+      ↓
+soil lookup
+      ↓
+25 soil profiles
+
+Then we can calculate site-level statistics:
+
+average sand
+average clay
+average organic carbon
+maximum/minimum values
+
+You're now genuinely evaluating the site.
+
+
+---
+
+DAY 1 FINISH LINE
+
+If you get this far today:
+
+SITE
+                     │
+          center + area
+                     │
+                     ▼
+              25 coordinates
+                     │
+                     ▼
+              SoilGrids data
+                     │
+                     ▼
+        soil data across the site
+
+Day 1 is successful.
+
+Do not attempt RUSLE tonight if the above isn't working.
+
+
+---
+
+DAY 2 — Add terrain + land use + risk
+
+Tomorrow we'll add three things.
+
+1. Terrain
+
+For each point:
+
+lat/lon
+   ↓
+elevation data
+   ↓
+slope
+
+Eventually:
+
+25 points
+   ↓
+25 slope values
+   ↓
+average slope
+maximum slope
+
+This tells us whether the site is generally flat or steep.
+
+
+---
+
+2. Land use
+
+This is critical because of your mall problem.
+
+We'll ask:
+
+> "What is currently located at each point?"
+
+
+
+For example:
+
+Point 1 → agricultural
+Point 2 → agricultural
+Point 3 → built-up
+Point 4 → agricultural
+...
+
+Then we can say:
+
+Site contains:
+    88% agricultural
+     8% built-up
+     4% other
+
+And potentially reject sites containing unacceptable land types.
+
+This is where your project becomes more than:
+
+> "Calculate an erosion formula."
+
+
+
+
+---
+
+3. Erosion risk
+
+Only after we have:
+
+soil
++
+slope
++
+rainfall
++
+vegetation
+
+do we calculate the erosion risk.
+
+Conceptually:
+
+SITE
+               │
+     ┌─────────┼──────────┐
+     ▼         ▼          ▼
+   SOIL      SLOPE      RAINFALL
+     │         │          │
+     └─────────┼──────────┘
+               ▼
+          EROSION RISK
+               │
+               ▼
+         Low / Medium / High
+
+Then aggregate the point-level results into:
+
+SITE EROSION RISK
+
+
+---
+
+The complete 2-day progression
+
+Don't look beyond the current step while coding.
+
+DAY 1
+
+[1] Create project
+       ↓
+[2] Accept center + area
+       ↓
+[3] Convert area → square dimensions
+       ↓
+[4] Generate 25 points
+       ↓
+[5] Verify points
+       ↓
+[6] Open ONE SoilGrids GeoTIFF
+       ↓
+[7] Extract sand at ONE point
+       ↓
+[8] Extract all four soil properties
+       ↓
+[9] Extract soil for all 25 points
+       ↓
+[10] Site-level soil summary
+
+DAY 2
+
+[1] Get elevation
+       ↓
+[2] Calculate slope
+       ↓
+[3] Add rainfall
+       ↓
+[4] Add vegetation
+       ↓
+[5] Add land-use classification
+       ↓
+[6] Calculate erosion risk
+       ↓
+[7] Aggregate point risks
+       ↓
+[8] Produce site-level result
+
+
+---
+
+And here's your actual first task
+
+Do only this now:
+
+Create:
+
+soil_classifier/
+├── data/
+├── src/
+│   └── site.py
+└── requirements.txt
+
+Activate your .venv, install:
+
+pip install numpy pandas requests
+
+Then open site.py.
+
+Your first challenge is:
+
+> Write site_dimensions(area_km2) yourself.
+
+
+
+It should turn:
+
+1 → 1 km × 1 km
+4 → 2 km × 2 km
+9 → 3 km × 3 km
+
+Don't move to SoilGrids yet.
+
+Question for you: what mathematical operation do you need to turn an area like 4 km² into the side length of a square?

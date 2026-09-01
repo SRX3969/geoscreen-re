@@ -1,0 +1,1408 @@
+site.py      → What area are we evaluating?
+soil.py      → What is the soil like?
+terrain.py   → How steep is it?
+land_use.py  → What is currently on the land?
+
+Never learnt about python requests so going in a workflow to understand it ---
+
+GET: Asks the server to retrieve or read data (like loading a webpage or fetching a user profile).
+
+POST: Asks the server to create or send new data (like submitting a form or creating a new user account).
+
+PUT: Asks the server to update or replace existing data.
+
+DELETE: Asks the server to remove data.
+
+So if I am writing code to get the data it is known as the **client** and the place I am getting it from is called the **server**.
+
+The system used is known as **DNS**, which is basically the phonebook for the internet. It takes a domain name and finds the IP address of the server that hosts that website/service.
+
+The protocol between this connection is known as **HTTPS**, which provides an encrypted and secure connection between the client and server. You can think of it roughly as:
+
+> "Are we communicating securely and can someone else read what we are sending?"
+
+Now once the request is sent, it may fail or succeed.
+
+The universal code for success is:
+
+**200 OK**
+
+which means the server successfully handled the request.
+
+Now there are codes for failure also, but there are many:
+
+**400 Bad Request:** The server cannot process the request because something about the client's request is wrong.
+
+**404 Not Found:** The requested resource could not be found.
+
+**500 Internal Server Error:** Something went wrong on the server while processing the request.
+
+**503 Service Unavailable:** The server is temporarily unable to handle the request, often because of overload or maintenance.
+
+Now once it's done and we get a 200, it may return the data as **JSON**.
+
+JSON stands for **JavaScript Object Notation**. It is a very common format used by APIs to exchange structured data.
+
+It looks very similar to a Python dictionary:
+
+```python
+{
+    "login": "octocat",
+    "id": 583231,
+    "public_repos": 8
+}
+```
+
+It is not exactly a Python dictionary because it is a data format, but Python can easily convert JSON into normal Python objects such as dictionaries and lists.
+
+Okay so right now we understand how to GET.
+
+When we need to get something, we use something like:
+
+```python
+requests.get(...)
+```
+
+which is similar to me going on a browser and entering a website address and asking the server to give me something.
+
+Now it only gives what I ask for.
+
+Like if I ask the waiter for the menu, they won't automatically give me every ingredient in the restaurant. They give me the information I requested.
+
+APIs work in a similar way.
+
+Now I can store the response it gives me:
+
+```python
+response = requests.get(...)
+```
+
+The response contains several things, including the actual data returned by the server.
+
+I can look at:
+
+```python
+response.text
+```
+
+which gives me the response body as raw text.
+
+But raw text may not be convenient to work with.
+
+So when I use:
+
+```python
+response.json()
+```
+
+Python takes the JSON response and converts it into normal Python objects, usually a dictionary or list.
+
+Now I can access the fine details I actually want.
+
+For example, if an API returns:
+
+```python
+{
+    "clay": 13,
+    "sand": 75,
+    "rainfall": 820
+}
+```
+
+I can access:
+
+```python
+data["clay"]
+data["sand"]
+data["rainfall"]
+```
+
+This is exactly the kind of idea we eventually use in our project: get structured environmental data and then extract the specific values we need.
+
+Now we move to POST ---
+
+POST is when we want to send new data to the server.
+
+For example, if I want to create a new user or create a new task, I send the information as a **request body**.
+
+```python
+new_task = {
+    "title": "Master Python APIs",
+    "completed": False,
+    "userId": 1
+}
+
+response = requests.post(
+    "https://jsonplaceholder.typicode.com/todos",
+    json=new_task
+)
+```
+
+Here:
+
+```python
+json=new_task
+```
+
+means:
+
+> "Convert this Python dictionary into JSON and send it as the body of the request."
+
+So GET is mainly:
+
+> "Give me something."
+
+POST is mainly:
+
+> "Here is some new data. Store/create/process it."
+
+NOW GET
+
+```text
+https://www.youtube.com/results?search_query=python
+```
+
+So when I searched on YouTube, I can see:
+
+```text
+search_query=python
+```
+
+That is a **query parameter**.
+
+The `?` means the main URL is finished and we are starting to provide extra parameters.
+
+The pattern is basically:
+
+```text
+?parameter=value
+```
+
+So:
+
+```text
+search_query=python
+```
+
+means:
+
+> "Search for the word python."
+
+Instead of manually constructing the URL, `requests` lets us provide query parameters cleanly:
+
+```python
+query_params = {
+    "q": "python"
+}
+
+response = requests.get(
+    "https://api.github.com/search/repositories",
+    params=query_params
+)
+```
+
+Requests automatically builds the query string for us.
+
+I can add multiple parameters:
+
+```python
+params = {
+    "city": "Bangalore",
+    "units": "metric"
+}
+```
+
+So an API can let me filter exactly what I want.
+
+This is useful for things like weather APIs where I might provide:
+
+```text
+city
+units
+date
+```
+
+and get only the information I need.
+
+Now we move from APIs to **our actual project**.
+
+Our project is slightly different because we are using **Google Earth Engine (GEE)** instead of directly using `requests`.
+
+GEE already provides Python functions that communicate with Google's Earth Engine servers for us.
+
+So when I write:
+
+```python
+ee.Image(...)
+```
+
+or:
+
+```python
+sampleRegions(...)
+```
+
+I am creating an operation that Earth Engine will perform on its servers.
+
+The important idea is still the same:
+
+```text
+Python program
+      ↓
+request/operation
+      ↓
+Earth Engine server
+      ↓
+environmental data
+      ↓
+Python
+```
+
+## STEP 1 — Connect to Earth Engine
+
+```python
+import ee
+import pandas as pd
+import numpy as np
+
+from site_gen import boundaries
+```
+
+`ee` is the Google Earth Engine Python library.
+
+`pandas` is used to create and manipulate our table.
+
+`numpy` is used for mathematical calculations.
+
+`boundaries` is our own function from `site_gen.py` that calculates the site's boundary and generates our 100 sample points.
+
+Then:
+
+```python
+ee.Initialize(
+    project="eternal-algebra-491904-k3"
+)
+```
+
+This connects our Python program to our Google Earth Engine project.
+
+Basically:
+
+> "Python, connect me to my Earth Engine account/project so that I can use GEE datasets."
+
+## STEP 2 — Create the 100 sample points
+
+```python
+points = boundaries(8.6381, 76.7908)
+```
+
+This gives our `boundaries()` function:
+
+```text
+latitude  = 8.6381
+longitude = 76.7908
+```
+
+and our function generates 100 random coordinates inside the calculated site boundary.
+
+So:
+
+```text
+User's site
+┌──────────────────────┐
+│ •   •    •      •   │
+│    •    •  •        │
+│ •      •      •     │
+│   •   •    •    •   │
+└──────────────────────┘
+```
+
+These 100 points are our **sample locations**.
+
+We don't need to inspect every single square metre of the land.
+
+Instead, we use 100 representative locations to estimate the environmental conditions of the whole site.
+
+Then:
+
+```python
+features = []
+point_id = 1
+```
+
+We create an empty Python list to store our GEE Features.
+
+`point_id` gives every point an identity:
+
+```text
+Point 1
+Point 2
+Point 3
+...
+Point 100
+```
+
+## STEP 3 — Convert Python coordinates into GEE points
+
+```python
+for lat, lon in points:
+```
+
+This goes through our 100 `(latitude, longitude)` tuples one by one.
+
+Then:
+
+```python
+point = ee.Geometry.Point(
+    [lon, lat]
+)
+```
+
+This converts our normal Python coordinate into a geographic object that Earth Engine understands.
+
+Notice:
+
+```text
+Our Python tuple:
+(lat, lon)
+
+GEE Point:
+[lon, lat]
+```
+
+GEE treats the coordinates as:
+
+```text
+x = longitude
+y = latitude
+```
+
+Then:
+
+```python
+feature = ee.Feature(
+    point,
+    {"point_id": point_id}
+)
+```
+
+A **Geometry** is just the location.
+
+A **Feature** is:
+
+```text
+geometry + information
+```
+
+So our Feature contains:
+
+```text
+location → where is this point?
+point_id → which point is this?
+```
+
+Then:
+
+```python
+features.append(feature)
+```
+
+adds that Feature to our list.
+
+Finally:
+
+```python
+collection = ee.FeatureCollection(
+    features
+)
+```
+
+turns the 100 Features into one **FeatureCollection**.
+
+So:
+
+```text
+100 Features
+     ↓
+FeatureCollection
+```
+
+A FeatureCollection is simply a collection/bunch of Features.
+
+# STEP 4 — Get elevation and slope
+
+Now we ask:
+
+> "What is the terrain like at these 100 points?"
+
+First:
+
+```python
+srtm = ee.Image(
+    "USGS/SRTMGL1_003"
+)
+```
+
+SRTM is an elevation dataset.
+
+Think of it as a giant raster:
+
+```text
+1000  1005  1010
+1002  1008  1015
+1005  1012  1020
+```
+
+Each pixel contains an elevation value.
+
+Then:
+
+```python
+slope = ee.Terrain.slope(
+    srtm
+)
+```
+
+GEE looks at the elevation raster and calculates how steep each pixel is compared with its surrounding pixels.
+
+So:
+
+```text
+elevation raster
+      ↓
+Terrain.slope()
+      ↓
+slope raster
+```
+
+Now:
+
+```python
+combined = srtm.addBands(
+    slope
+)
+```
+
+An Earth Engine image can contain multiple **bands**.
+
+Think:
+
+```text
+combined
+├── elevation
+└── slope
+```
+
+So instead of sampling two separate images, we can sample both at the same time.
+
+Then:
+
+```python
+results = combined.sampleRegions(
+    collection=collection,
+    scale=30,
+    geometries=True
+)
+```
+
+This means:
+
+> "Take this elevation + slope image and look up the values at my 100 points."
+
+`sampleRegions()` does **not** return the entire raster.
+
+It returns the values at the locations we asked for.
+
+So:
+
+```text
+Point 1 → elevation + slope
+Point 2 → elevation + slope
+...
+Point 100 → elevation + slope
+```
+
+`scale=30` means we are sampling using approximately 30-metre pixels, matching the SRTM resolution we are working with.
+
+`geometries=True` tells GEE:
+
+> "Keep the original point coordinates in the returned Features."
+
+Then:
+
+```python
+data = results.getInfo()
+```
+
+This is where the GEE object becomes normal Python data.
+
+Before:
+
+```text
+Earth Engine object
+```
+
+After:
+
+```text
+Python dictionary
+```
+
+Then:
+
+```python
+for feature in data["features"]:
+```
+
+means:
+
+> "Go through the 100 returned Features one by one."
+
+Then:
+
+```python
+row = feature["properties"]
+```
+
+gets the data stored inside that Feature.
+
+Remember the hierarchy:
+
+```text
+Feature
+├── geometry
+└── properties
+      ├── point_id
+      ├── elevation
+      └── slope
+```
+
+Then:
+
+```python
+coordinates = feature["geometry"]["coordinates"]
+```
+
+gets the actual point coordinates.
+
+We then add them to the row:
+
+```python
+row["longitude"] = coordinates[0]
+row["latitude"] = coordinates[1]
+```
+
+and put the row into:
+
+```python
+rows.append(row)
+```
+
+Finally:
+
+```python
+df = pd.DataFrame(rows)
+```
+
+turns our 100 rows into a Pandas DataFrame.
+
+At this stage we have:
+
+```text
+point_id | latitude | longitude | elevation | slope
+```
+
+# STEP 5 — Get clay
+
+Now we ask another map:
+
+> "What is the clay content at each point?"
+
+```python
+soil = ee.Image(
+    "OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02"
+)
+```
+
+This loads the clay dataset.
+
+The dataset contains multiple depth bands:
+
+```text
+b0
+b10
+b30
+b60
+b100
+b200
+```
+
+We decided to use only:
+
+```python
+clay = soil.select("b0")
+```
+
+because we want the surface/topsoil layer.
+
+Then:
+
+```python
+soil_results = clay.sampleRegions(
+    collection=collection,
+    scale=250
+)
+```
+
+means:
+
+> "At the same 100 points, give me the clay value from the soil map."
+
+This gives us something like:
+
+```text
+Point 1 → clay = 13
+Point 2 → clay = 14
+...
+Point 100 → clay = ...
+```
+
+Then we convert the GEE result into Python data exactly like before.
+
+We create:
+
+```python
+soil_df
+```
+
+and rename:
+
+```python
+"b0" → "clay"
+```
+
+because `b0` is the dataset's technical band name, while `clay` is much clearer for our project.
+
+Then:
+
+```python
+df = df.merge(
+    soil_df,
+    on="point_id"
+)
+```
+
+This combines the two tables by matching the same point IDs.
+
+So:
+
+```text
+Terrain table
+Point 1 → elevation, slope
+
+Soil table
+Point 1 → clay
+
+        ↓ merge
+
+Point 1 → elevation, slope, clay
+```
+
+# STEP 6 — Get land cover
+
+Now we ask:
+
+> "What is physically covering the land?"
+
+```python
+landcover = ee.ImageCollection(
+    "ESA/WorldCover/v200"
+).first()
+```
+
+WorldCover is stored as an **ImageCollection**, meaning it is a collection of images.
+
+`.first()` gets the first image from that collection.
+
+Then:
+
+```python
+landcover = landcover.select("Map")
+```
+
+The `Map` band contains the land-cover class.
+
+For example, the number might mean:
+
+```text
+10 → tree cover
+40 → cropland
+50 → built-up
+60 → bare/sparse vegetation
+```
+
+These are **categories**, not measurements.
+
+Then:
+
+```python
+land_results = landcover.sampleRegions(
+    collection=collection,
+    scale=10
+)
+```
+
+means:
+
+> "At each of my 100 points, tell me what land-cover class exists there."
+
+`scale=10` is used because this WorldCover product has approximately 10-metre pixels.
+
+Again we convert the results into Pandas and rename:
+
+```text
+Map → land_cover
+```
+
+Now the DataFrame has:
+
+```text
+elevation
+slope
+clay
+land_cover
+```
+
+# STEP 7 — Get annual rainfall
+
+Rainfall is different from elevation.
+
+Elevation is basically:
+
+```text
+location → value
+```
+
+Rainfall data also has **time**.
+
+CHIRPS gives us many daily rainfall images.
+
+```python
+rain = ee.ImageCollection(
+    "UCSB-CHG/CHIRPS/DAILY"
+)
+```
+
+This means:
+
+```text
+Image 1 → one day
+Image 2 → another day
+Image 3 → another day
+...
+```
+
+Then:
+
+```python
+rain_2025 = rain.filterDate(
+    "2025-01-01",
+    "2026-01-01"
+)
+```
+
+filters the ImageCollection so we only keep rainfall observations from 2025.
+
+Then:
+
+```python
+annual_rain = rain_2025.select(
+    "precipitation"
+).sum()
+```
+
+`precipitation` is the rainfall band.
+
+`.sum()` adds the rainfall from all the daily images pixel-by-pixel.
+
+So:
+
+```text
+365 daily rainfall images
+          ↓
+        sum()
+          ↓
+one annual rainfall image
+```
+
+Then:
+
+```python
+rain_results = annual_rain.sampleRegions(
+    collection=collection,
+    scale=5566
+)
+```
+
+asks:
+
+> "What was the total 2025 rainfall at each of my 100 points?"
+
+We then turn that into Pandas and rename:
+
+```text
+precipitation → annual_rainfall
+```
+
+Now we have:
+
+```text
+elevation
+slope
+clay
+land_cover
+annual_rainfall
+```
+
+# STEP 8 — Get NDVI
+
+Now we want to know:
+
+> "How much vegetation is around each point?"
+
+We use Sentinel-2:
+
+```python
+sentinel = ee.ImageCollection(
+    "COPERNICUS/S2_SR_HARMONIZED"
+)
+```
+
+Again, it is an ImageCollection because there are many satellite images from different dates.
+
+We select 2025:
+
+```python
+sentinel_2025 = sentinel.filterDate(
+    "2025-01-01",
+    "2026-01-01"
+)
+```
+
+Then:
+
+```python
+sentinel_median = sentinel_2025.median()
+```
+
+There are many images during the year.
+
+Instead of choosing one random date, we calculate a median composite to get one representative image.
+
+Then:
+
+```python
+ndvi = sentinel_median.normalizedDifference(
+    ["B8", "B4"]
+).rename("NDVI")
+```
+
+This calculates NDVI using:
+
+```text
+B8 → Near Infrared
+B4 → Red
+```
+
+NDVI roughly tells us how strongly vegetation is present.
+
+```text
+high positive NDVI → healthy/dense vegetation
+around 0            → sparse vegetation/bare soil
+negative values     → often water/cloud/etc.
+```
+
+Then we sample it at the same 100 points.
+
+Now our table has another column:
+
+```text
+NDVI
+```
+
+# STEP 9 — Get sand
+
+Clay alone isn't enough to describe soil texture.
+
+So we get sand:
+
+```python
+sand_image = ee.Image(
+    "OpenLandMap/SOL/SOL_SAND-WFRACTION_USDA-3A1A1A_M/v02"
+).select("b0")
+```
+
+Again we use the surface band `b0`.
+
+Then:
+
+```python
+sand_results = sand_image.sampleRegions(
+    collection=collection,
+    scale=250
+)
+```
+
+means:
+
+> "Find the sand value at my 100 points."
+
+After converting it to Pandas and merging, we have:
+
+```text
+clay
+sand
+```
+
+# STEP 10 — Derive silt
+
+We don't have the Silt dataset we originally tried to use, so we derive it using:
+
+```python
+df["silt"] = (
+    100
+    - df["clay"]
+    - df["sand"]
+)
+```
+
+The idea is:
+
+```text
+clay + sand + silt ≈ 100%
+```
+
+Therefore:
+
+```text
+silt = 100 - clay - sand
+```
+
+So now the soil texture information is:
+
+```text
+clay
+sand
+silt
+```
+
+# STEP 11 — Organic carbon
+
+We also attempted to get soil organic carbon:
+
+```python
+soc_image = ee.Image(
+    "OpenLandMap/SOL/SOL_ORGANIC-CARBON_USDA-6A1C_M/v02"
+)
+```
+
+We sampled it at the 100 points.
+
+However, the returned values were all zero in our run.
+
+Because of that, we **did not pretend that we had useful organic-carbon information**.
+
+Instead, in the K-factor calculation we used:
+
+```python
+forg = 1
+```
+
+which effectively means:
+
+> "We are not applying an organic-carbon correction because the retrieved data was not usable."
+
+This is an important limitation of the current prototype.
+
+# STEP 12 — RUSLE
+
+Now we stop collecting environmental information and start using it.
+
+RUSLE stands for:
+
+**Revised Universal Soil Loss Equation**
+
+The basic equation is:
+
+```text
+A = R × K × LS × C × P
+```
+
+where:
+
+```text
+A  → estimated soil loss
+R  → rainfall erosivity
+K  → soil erodibility
+LS → slope/topography
+C  → cover-management
+P  → support/conservation practices
+```
+
+# STEP 13 — K factor
+
+The K factor represents how easily the soil itself can be eroded.
+
+We use the soil texture:
+
+```text
+clay
+sand
+silt
+```
+
+and calculate correction terms:
+
+```python
+fcsand
+fclsi
+fsand
+```
+
+Then:
+
+```python
+df["K"] = (
+    fcsand
+    * fclsi
+    * forg
+    * fsand
+    * 0.1317
+)
+```
+
+So conceptually:
+
+```text
+clay + sand + silt
+        ↓
+   soil texture
+        ↓
+       K
+```
+
+The important idea is not to memorize the giant equation.
+
+The important idea is:
+
+> K converts soil characteristics into a measure of soil erodibility.
+
+# STEP 14 — LS factor
+
+We already have slope in degrees:
+
+```text
+slope
+```
+
+First:
+
+```python
+slope_percent = (
+    np.tan(
+        np.radians(
+            df["slope"]
+        )
+    )
+    * 100
+)
+```
+
+This converts slope from **degrees to percentage slope**.
+
+Then:
+
+```python
+df["LS"] = (
+    slope_percent / 9
+) ** 0.6
+```
+
+This gives our LS approximation.
+
+The idea is:
+
+```text
+steeper terrain
+      ↓
+larger LS
+      ↓
+greater erosion potential
+```
+
+Important: our current LS is a **simplified slope-based approximation** rather than a full DEM-derived slope-length calculation.
+
+# STEP 15 — C factor
+
+The C factor represents the effect of vegetation/ground cover.
+
+We use NDVI:
+
+```python
+df["C"] = np.exp(
+    -2 * df["NDVI"]
+)
+```
+
+The important relationship is:
+
+```text
+more vegetation
+     ↓
+higher NDVI
+     ↓
+lower C
+     ↓
+less erosion
+```
+
+So vegetation protects the soil.
+
+# STEP 16 — P factor
+
+P represents erosion-control practices such as:
+
+```text
+terracing
+contour farming
+other conservation practices
+```
+
+We don't have that site-specific information.
+
+So:
+
+```python
+df["P"] = 1
+```
+
+means:
+
+> "Assume there is no reduction in erosion from conservation practices."
+
+This is an assumption, not measured data.
+
+# STEP 17 — R factor
+
+This is another important limitation.
+
+We currently do:
+
+```python
+df["R"] = df[
+    "annual_rainfall"
+]
+```
+
+So we're using annual rainfall as a **proxy** for the R factor.
+
+The true RUSLE R factor is rainfall **erosivity**, which depends on rainfall intensity and storm energy, not just total annual rainfall.
+
+So this is currently:
+
+```text
+annual rainfall
+      ↓
+R proxy
+```
+
+and not a perfect implementation of the true R factor.
+
+# STEP 18 — Calculate soil loss
+
+Now we finally use the RUSLE equation:
+
+```python
+df["soil_loss"] = (
+    df["R"]
+    * df["K"]
+    * df["LS"]
+    * df["C"]
+    * df["P"]
+)
+```
+
+For every point:
+
+```text
+Point 1
+R × K × LS × C × P
+      ↓
+soil loss
+
+Point 2
+R × K × LS × C × P
+      ↓
+soil loss
+
+...
+
+Point 100
+R × K × LS × C × P
+      ↓
+soil loss
+```
+
+So now every one of our 100 sample points has an estimated soil-loss value.
+
+# STEP 19 — Get one answer for the entire land
+
+We don't actually want the user to see 100 numbers.
+
+The user wants:
+
+> "How bad is my land?"
+
+So:
+
+```python
+site_soil_loss = df[
+    "soil_loss"
+].mean()
+```
+
+takes the average of the 100 point estimates.
+
+So:
+
+```text
+100 point estimates
+       ↓
+     mean()
+       ↓
+ONE site-level soil-loss estimate
+```
+
+This is why the 100 points were useful.
+
+They are not 100 separate pieces of land.
+
+They are **samples used to estimate the condition of the entire site**.
+
+# STEP 20 — Classify the site
+
+We then use fixed thresholds:
+
+```python
+if site_soil_loss < 5:
+    site_risk = "Low"
+
+elif site_soil_loss < 10:
+    site_risk = "Moderate"
+
+elif site_soil_loss < 20:
+    site_risk = "High"
+
+else:
+    site_risk = "Very High"
+```
+
+This is different from `pd.qcut()`.
+
+`qcut()` asks:
+
+> "Which points are high compared with the other points?"
+
+Our final classification asks:
+
+> "How high is the estimated soil loss for this site?"
+
+That makes it possible to compare two different sites.
+
+For example:
+
+```text
+Site A → 0.938 t/ha/year → Low
+
+Site B → 44.750 t/ha/year → Very High
+```
+
+That is much more useful than saying both sites are "Moderate" simply because each site's values were divided into its own quartiles.
+
+# STEP 21 — Save the dataset
+
+Finally:
+
+```python
+df.to_csv(
+    "erosion_dataset.csv",
+    index=False
+)
+```
+
+takes our Pandas DataFrame and saves it as a CSV file.
+
+So we now have a permanent table containing the environmental information and the calculated RUSLE-related factors for all 100 points.
+
+# THE WHOLE PROJECT IN ONE FLOW
+
+```text
+USER
+ │
+ ├── latitude
+ ├── longitude
+ └── site area
+        ↓
+site_gen.py
+        ↓
+calculate site boundary
+        ↓
+generate 100 points
+        ↓
+Google Earth Engine
+        │
+        ├── SRTM
+        │     ├── elevation
+        │     └── slope
+        │
+        ├── OpenLandMap
+        │     ├── clay
+        │     └── sand
+        │
+        ├── derived
+        │     └── silt
+        │
+        ├── ESA WorldCover
+        │     └── land cover
+        │
+        ├── CHIRPS
+        │     └── annual rainfall
+        │
+        └── Sentinel-2
+              └── NDVI
+        ↓
+Pandas DataFrame
+        ↓
+RUSLE factors
+        ├── R
+        ├── K
+        ├── LS
+        ├── C
+        └── P
+        ↓
+R × K × LS × C × P
+        ↓
+100 soil-loss estimates
+        ↓
+mean()
+        ↓
+ONE site-level soil-loss estimate
+        ↓
+Low / Moderate / High / Very High
+        ↓
+FINAL USER ANSWER
+```
+
+So the big picture is:
+
+> **We're using Python to define the site, Earth Engine to collect environmental information from different geographic datasets, Pandas to organize that information into a table, and RUSLE to turn those environmental measurements into an estimated erosion value for the entire site.**

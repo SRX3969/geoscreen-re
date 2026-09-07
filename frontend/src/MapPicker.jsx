@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import L from "leaflet";
 import {
   useMap,
   useMapEvents,
@@ -7,12 +8,44 @@ import {
   Polygon,
 } from "react-leaflet";
 
+// Custom high-resolution SVG pin icon for Leaflet
+const customPinIcon = L.divIcon({
+  className: "custom-map-pin",
+  html: `
+    <div style="
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #173d2a;
+      color: white;
+      border: 2px solid #ffffff;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+    ">
+      <div style="
+        width: 10px;
+        height: 10px;
+        background: #a3e635;
+        border-radius: 50%;
+        transform: rotate(45deg);
+      "></div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
 function MapController({ position }) {
   const map = useMap();
 
   useEffect(() => {
-    if (position) {
-      map.flyTo(position, 12);
+    if (position && Array.isArray(position) && position.length === 2) {
+      map.flyTo(position, Math.max(map.getZoom(), 8), { duration: 1.2 });
     }
   }, [position, map]);
 
@@ -28,10 +61,7 @@ function MapClickHandler({
 }) {
   useMapEvents({
     click(event) {
-      const newPoint = [
-        event.latlng.lat,
-        event.latlng.lng,
-      ];
+      const newPoint = [event.latlng.lat, event.latlng.lng];
 
       if (drawing) {
         setPoints((prev) => [...prev, newPoint]);
@@ -46,13 +76,15 @@ function MapClickHandler({
   }
 
   return (
-    <Marker position={position}>
+    <Marker position={position} icon={customPinIcon}>
       <Popup>
-        <strong>Selected Site</strong>
-        <br />
-        Latitude: {position[0].toFixed(5)}
-        <br />
-        Longitude: {position[1].toFixed(5)}
+        <div style={{ padding: "4px", fontSize: "12px", lineHeight: "1.4" }}>
+          <strong style={{ color: "#173d2a" }}>Target Assessment Site</strong>
+          <br />
+          <span>Lat: {position[0].toFixed(5)}°</span>
+          <br />
+          <span>Lon: {position[1].toFixed(5)}°</span>
+        </div>
       </Popup>
     </Marker>
   );
@@ -104,21 +136,18 @@ export default function MapPicker({
 
   const finishDrawing = () => {
     if (points.length < 3) {
-      alert("Select at least 3 points.");
+      alert("Please click at least 3 points on the map to define the site perimeter.");
       return;
     }
 
     const area = calculateArea(points);
-
     onAreaCalculated(area.toFixed(2));
-
     setDrawing(false);
   };
 
   const clearBoundary = () => {
     setPoints([]);
     setDrawing(false);
-    onAreaCalculated("");
   };
 
   return (
@@ -134,34 +163,65 @@ export default function MapPicker({
       />
 
       {points.length >= 2 && (
-        <Polygon positions={points} />
+        <Polygon
+          positions={points}
+          pathOptions={{
+            color: "#173d2a",
+            fillColor: "#3d8758",
+            fillOpacity: 0.35,
+            weight: 2,
+            dashArray: drawing ? "6, 6" : undefined,
+          }}
+        />
       )}
 
       <div
         style={{
           position: "absolute",
-          top: "10px",
-          right: "10px",
+          top: "14px",
+          right: "14px",
           zIndex: 1000,
           display: "flex",
           gap: "8px",
         }}
       >
         {!drawing && (
-          <button onClick={startDrawing}>
-            Draw Site
+          <button
+            type="button"
+            className="map-control-btn"
+            onClick={startDrawing}
+            title="Click to draw polygon boundaries"
+          >
+            ✏️ Draw Site
           </button>
         )}
 
         {drawing && (
-          <button onClick={finishDrawing}>
-            Finish
-          </button>
+          <>
+            <button
+              type="button"
+              className="map-control-btn btn-finish"
+              onClick={finishDrawing}
+            >
+              ✓ Complete ({points.length} pts)
+            </button>
+            <button
+              type="button"
+              className="map-control-btn btn-cancel"
+              onClick={clearBoundary}
+            >
+              ✕ Cancel
+            </button>
+          </>
         )}
 
-        {points.length > 0 && (
-          <button onClick={clearBoundary}>
-            Clear
+        {points.length > 0 && !drawing && (
+          <button
+            type="button"
+            className="map-control-btn btn-clear"
+            onClick={clearBoundary}
+          >
+            Clear Boundary
           </button>
         )}
       </div>

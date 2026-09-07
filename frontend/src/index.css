@@ -1,4 +1,8 @@
-html,
+html {
+  scroll-behavior: smooth;
+  min-height: 100%;
+}
+
 body,
 #root {
   min-height: 100%;
@@ -6,4 +10,5 @@ body,
 
 body {
   margin: 0;
+  padding: 0;
 }

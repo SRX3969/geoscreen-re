@@ -1,41 +1,35 @@
 import React from "react";
-import { Compass, ArrowUp } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Compass } from "lucide-react";
 
-export default function Footer({ onScrollToTop }) {
+export default function Footer() {
   return (
-    <footer className="site-footer">
-      <div className="footer-container">
-        <div className="footer-main-row">
-          <div className="footer-brand-info">
-            <div className="brand-group">
-              <Compass size={18} strokeWidth={2.4} />
-              <span className="brand-name">GEOSCREEN</span>
+    <footer className="global-site-footer">
+      <div className="footer-inner-container">
+        <div className="footer-top-brand-row">
+          <div className="footer-brand-group">
+            <div className="footer-brand-title">
+              <Compass size={16} strokeWidth={2.4} />
+              <span>GEOSCREEN</span>
             </div>
-            <p className="brand-tagline">Geospatial Renewable Intelligence</p>
+            <p className="footer-brand-subtitle">Geospatial Renewable Intelligence</p>
           </div>
 
-          <div className="footer-action-links">
-            <button type="button" className="btn-back-to-top" onClick={onScrollToTop}>
-              <ArrowUp size={13} strokeWidth={2.2} />
-              <span>Back to Top</span>
-            </button>
-          </div>
+          <nav className="footer-nav-links">
+            <Link to="/" className="footer-link">Home</Link>
+            <Link to="/assessment" className="footer-link">Assessment</Link>
+            <Link to="/methodology" className="footer-link">Methodology</Link>
+            <Link to="/data-sources" className="footer-link">Data Sources</Link>
+          </nav>
         </div>
 
-        {/* Mandatory Scientific Disclaimer (Section 51) */}
-        <div className="footer-disclaimer-card">
-          <p className="disclaimer-text">
-            <strong>Preliminary Screening Notice:</strong> This assessment provides preliminary, model-based site screening.
-            It does not replace detailed resource measurement, geotechnical investigation, environmental assessment or engineering feasibility studies.
+        <div className="footer-bottom-notice-row">
+          <p className="footer-disclaimer-notice">
+            Preliminary model-based site screening. Does not replace on-site pyranometry/anemometry,
+            geotechnical investigation, or environmental impact assessments.
           </p>
-        </div>
-
-        <div className="footer-bottom-bar">
-          <span className="copy-text">
-            © {new Date().getFullYear()} GEOSCREEN • Geospatial Renewable Intelligence
-          </span>
-          <span className="version-tag">
-            ERA5-Land • USGS SRTM 30m • RUSLE • OpenStreetMap
+          <span className="footer-copy-text">
+            © {new Date().getFullYear()} GEOSCREEN. All rights reserved.
           </span>
         </div>
       </div>
